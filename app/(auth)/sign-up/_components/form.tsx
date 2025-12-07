@@ -5,8 +5,17 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, SubmitHandler, useForm } from "react-hook-form"
 import { SignUpSchema, signUpSchema } from "../_schema"
 import { Button } from "@/components/ui/button"
+import { authClient } from "@/lib/auth-client"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { useTransition } from "react"
 
 const SignupForm = () => {
+
+
+  const navigateTo = useRouter()
+  const [isSignUpPending, startSignUpTransition] = useTransition();
+
   const form = useForm({
     resolver: zodResolver(signUpSchema), defaultValues: {
       name: "",
@@ -16,8 +25,24 @@ const SignupForm = () => {
     }
   })
 
-  const onSubmit: SubmitHandler<SignUpSchema> = (data) => {
+  const onSubmit: SubmitHandler<SignUpSchema> = (data: SignUpSchema) => {
     console.log(data)
+    startSignUpTransition(async () => {
+      await authClient.signUp.email({
+        email: data.email,
+        password: data.password,
+        name: data.name,
+        fetchOptions: {
+          onSuccess: () => {
+            toast.success("Signed up successfully")
+            navigateTo.push("/sign-in")
+          },
+          onError: (error) => {
+            toast.error(`Sign up failed: ${error.error.message}`)
+          }
+        }
+      })
+    })
   }
 
   return (
@@ -75,7 +100,9 @@ const SignupForm = () => {
             </Field>
           )}
         />
-        <Button type="submit" className="w-full mt-4 bg-amber-500 hover:bg-amber-700 cursor-pointer">Sign Up</Button>
+        <Button disabled={isSignUpPending} type="submit" className="w-full mt-4 bg-amber-500 hover:bg-amber-700 cursor-pointer">{
+          isSignUpPending ? "Signing up..." : "Sign Up"
+        }</Button>
       </FieldGroup>
     </form>
   )
